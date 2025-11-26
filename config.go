@@ -2,8 +2,9 @@ package llama
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"net"
+
+	"gopkg.in/yaml.v2"
 )
 
 // A sensible default configuration for the collector in YAML
@@ -13,7 +14,7 @@ summarization:
     handlers:   2
 
 api:
-    bind:   0.0.0.0:5000
+    bind:   0.0.0.0:5200
 
 ports:
     default:
@@ -85,8 +86,9 @@ type TestsConfig []TestConfig
 // are applied to the resulting summaries.
 //
 // TODO(dmar): Restructure this to be more Dropbox specific, and reduce the
-//      data being included in this config. Most of this can come from a base,
-//      and then be populated by MDB queries.
+//
+//	data being included in this config. Most of this can come from a base,
+//	and then be populated by MDB queries.
 type TargetConfig struct {
 	IP   string `yaml:"ip"`
 	Port int64  `yaml:"port"`
