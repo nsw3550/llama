@@ -5,16 +5,19 @@ package llama
 import (
 	"flag"
 	"fmt"
-	"golang.org/x/time/rate"
 	"io/ioutil"
 	"log"
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
 const DEFAULT_CHANNEL_SIZE int64 = 100 // Default size used for buffered channels.
 
 // TODO(dmar): This really shouldn't be in here, and should be provided from the
-//     cmd tools or higher up.
+//
+//	cmd tools or higher up.
+//
 // Flags
 var configFile = flag.String("llama.config", "", "Config file to load from")
 
@@ -129,7 +132,6 @@ func (c *Collector) SetupAPI() {
 		c.SetupSummarizer()
 	}
 	c.api = NewAPI(c.s, c.ts, c.cfg.API.Bind)
-
 }
 
 // SetupTagSet loads the tags for targets, based on the config, that will be
