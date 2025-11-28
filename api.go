@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"sync"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // API represnts the HTTP server answering queries for collected data.
@@ -15,6 +17,28 @@ type API struct {
 	ts         TagSet
 	handler    *http.ServeMux
 	mutex      sync.RWMutex
+}
+
+// PromHandler handles requests for Prometheus metrics.
+func (api *API) PromHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 1. Update the Prometheus metrics based on the summary.
+
+		// Lock the existing summaries cache
+		api.summarizer.CMutex.RLock()
+		summaries := api.summarizer.Cache
+		log.Println("Found", len(summaries), "data points")
+		// Convert the summaries to Prometheus metrics
+		api.mutex.RLock()
+		EmitMetricsFromSummaries(summaries, api.ts)
+		api.mutex.RUnlock()
+		// Unlock the cache
+		api.summarizer.CMutex.RUnlock()
+
+		// 2. Delegate the request to the official promhttp.Handler()
+		// This serve the actual Prometheus formatted output
+		promhttp.Handler().ServeHTTP(w, r)
+	})
 }
 
 // InfluxHandler handles requests for InfluxDB formatted summaries.
@@ -92,6 +116,7 @@ func (api *API) RunForever() {
 func (api *API) setupHandlers() {
 	api.handler.HandleFunc("/status", api.StatusHandler)
 	api.handler.HandleFunc("/influxdata", api.InfluxHandler)
+	api.handler.Handle("/metrics", api.PromHandler())
 }
 
 // New returns an initialized API struct.
@@ -102,5 +127,6 @@ func NewAPI(s *Summarizer, t TagSet, addr string) *API {
 		Addr:    addr,
 		Handler: handler,
 	}
+	RegisterPrometheus() // Register the necessary variables with the Prometheus handler.
 	return &API{summarizer: s, ts: t, handler: handler, server: server}
 }
