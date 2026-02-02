@@ -4,8 +4,10 @@ import (
 	"log"
 	"net"
 	"time"
+	"unsafe"
 
 	pb "github.com/nsw3550/llama/proto"
+	"golang.org/x/sys/unix"
 	"golang.org/x/time/rate"
 	"google.golang.org/protobuf/proto"
 )
@@ -16,16 +18,8 @@ func Reflect(conn *net.UDPConn, rl *rate.Limiter) {
 	reflectorUp.Set(1)
 	defer reflectorUp.Set(0)
 
-	/*
-	   NOTE: This function assumes is has exclusive control and may improperly
-	         set the ToS bits if used in multiple routines. If that behavior is
-	         desired then the UDPConn will need to be placed in a struct with
-	         the indicator of ToS value. That would be much more efficient than
-	         checking the current value for each run.
-	*/
 	dataBuf := make([]byte, 4096)
 	oobBuf := make([]byte, 4096)
-	tos := byte(0)
 
 	log.Println("Beginning reflection on:", conn.LocalAddr())
 	for {
@@ -56,16 +50,8 @@ func Reflect(conn *net.UDPConn, rl *rate.Limiter) {
 			continue
 		}
 
-		// Update the ToS (if needed)
-		if tos != pbProbe.Tos[0] {
-			// Update the connection's ToS value
-			SetTos(conn, pbProbe.Tos[0])
-			tos = pbProbe.Tos[0]
-			reflectorTosChanges.Inc()
-		}
-
 		// Send the data back to sender
-		Send(data, conn, addr)
+		Send(data, pbProbe.Tos[0], conn, addr)
 		reflectorPacketsReflected.Inc()
 	}
 }
@@ -82,7 +68,14 @@ func Receive(data []byte, oob []byte, conn *net.UDPConn) (
 }
 
 // Send will send the provided data using the conn to the addr, via UDP.
-func Send(data []byte, conn *net.UDPConn, addr *net.UDPAddr) {
-	_, err := conn.WriteToUDP(data, addr)
+func Send(data []byte, tos byte, conn *net.UDPConn, addr *net.UDPAddr) {
+	oob := make([]byte, unix.CmsgSpace(1))
+	h := (*unix.Cmsghdr)(unsafe.Pointer(&oob[0]))
+	h.Level = unix.IPPROTO_IP
+	h.Type = unix.IP_TOS
+	h.SetLen(unix.CmsgLen(1))
+	dataPtr := uintptr(unsafe.Pointer(h)) + uintptr(unix.SizeofCmsghdr)
+	*(*byte)(unsafe.Pointer(dataPtr)) = tos
+	_, _, err := conn.WriteMsgUDP(data, oob, addr)
 	HandleError(err)
 }
