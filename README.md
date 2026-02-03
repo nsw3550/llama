@@ -1,4 +1,4 @@
-> **Note:** This is a fork of the original [Dropbox LLAMA](https://github.com/dropbox/llama) project.
+> **Note:** This is a fork of the [Dropbox LLAMA](https://github.com/dropbox/llama) project.
 > It has been modified to export Prometheus metrics instead of InfluxDB and includes
 > Docker deployment support.
 
@@ -12,9 +12,15 @@ It does this by sending UDP datagrams/probes from **collectors** to **reflectors
 
 [Black box testing](https://en.wikipedia.org/wiki/Black-box_testing) is critical to the successful monitoring and operation of a network. While collection of metrics from network devices can provide greater detail regarding known issues, they don't always provide a complete picture and can provide an overwhelming number of metrics. Black box testing with UDProbe doesn't care how the network is structured, only if it's working. This data can be used for building KPIs, observing big-picture issues, and guiding investigations into issues with unknown causes by quantifying which flows are/aren't working. See this article on [probers](https://medium.com/cloudprober/why-you-need-probers-f38400f5830e) for a good explanation on how this works.
 
-Network operators have found this useful on multiple occasions for gauging the impact of network issues on internal traffic, identifying the scope of impact, and locating issues for which they had no other metrics (internal hardware failures, circuit degradations, etc).
+Network operators often find this useful for gauging the impact of network issues on internal traffic, identifying the scope of impact, and locating issues for which they had no other metrics (internal hardware failures, circuit degradations, etc).
 
 **Even if you operate entirely in the cloud** UDProbe can help identify reachability and network health issues between and within regions/zones.
+
+## Architecture
+
+- **Reflector** - Lightweight daemon for receiving probes and sending them back to their source. Exposes basic health metrics via `/metrics` endpoint.
+- **Collector** - Sends probes to reflectors sourced from different ports, records results, and exposes Prometheus metrics via `/metrics` endpoint.
+- **Prometheus** - External Prometheus server scrapes metrics from the collector's `/metrics` endpoint for monitoring and alerting.
 
 ## Prometheus Metrics
 
@@ -23,11 +29,12 @@ The collector and reflector both expose Prometheus metrics on their `/metrics` e
 ### Collector Metrics
 
 The collector exposes the following metrics on port 5200:
-
-- **`udprobe_packet_loss_percentage`** (Gauge) - Packet loss percentage for a given measurement period.
-- **`udprobe_packets_sent`** (Gauge) - Number of packets sent for a given measurement period.
-- **`udprobe_packets_lost`** (Gauge) - Number of packets lost for a given measurement period.
-- **`udprobe_rtt`** (Gauge) - Average round-trip time (RTT) for packets sent during a given measurement period.
+| Metric | Type | Description |
+|--------|------|-------------|
+| `udprobe_packet_loss_percentage` | Gauge | Packet loss percentage for a given measurement period |
+| `udprobe_packets_sent` | Gauge | Number of packets sent for a given measurement period |
+| `udprobe_packets_lost` | Gauge | Number of packets lost for a given measurement period |
+| `udprobe_rtt` | Gauge | Average round-trip time (RTT) for packets sent during a given measurement period |
 
 ### Reflector Metrics
 
@@ -67,12 +74,6 @@ Alert on high packet loss:
 ```promql
 avg by (dst_hostname) (udprobe_packet_loss_percentage) > 5
 ```
-
-## Architecture
-
-- **Reflector** - Lightweight daemon for receiving probes and sending them back to their source.
-- **Collector** - Sends probes to reflectors on potentially multiple ports, records results, and exposes Prometheus metrics via `/metrics` endpoint.
-- **Prometheus** - External Prometheus server scrapes metrics from the collector's `/metrics` endpoint for monitoring and alerting.
 
 ## Quick Start
 
@@ -194,15 +195,6 @@ docker buildx build \
 - You can also specify a single platform if needed: `--platform linux/arm64`
 - The images use multi-arch base images, so they will run on both architectures
 
-### Production Deployment
-
-For production deployment on separate machines/instances:
-
-- Reflector: `reflector -port <port>` to start the reflector listening on a non-default port.
-- Collector: `collector -udprobe.config <config>` where the config is a YAML configuration based on one of the examples under `configs/`.
-
-Configure Prometheus to scrape the collector's `/metrics` endpoint from the API port (default: 5200).
-
 ## Ongoing Development
 
 This is a fork of the original Dropbox LLAMA project. The original was built during a [Dropbox Hack Week](https://www.theverge.com/2014/7/24/5930927/why-dropbox-gives-its-employees-a-week-to-do-whatever-they-want). This fork is currently in early development with significant changes including migration to Prometheus metrics and modernized dependencies. The API and config format may continue to evolve.
@@ -216,4 +208,4 @@ This is a very early stage project. Contributions are welcome, but please check 
 * Inspired by: <https://www.youtube.com/watch?v=N0lZrJVdI9A>
     * With slides: <https://www.nanog.org/sites/default/files/Lapukhov_Move_Fast_Unbreak.pdf>
 * Concepts borrowed from: <https://github.com/facebook/UdpPinger/>
-* Looking for the legacy Python version?: https://github.com/dropbox/llama-archive
+* Looking for the legacy Python version of llama?: https://github.com/dropbox/llama-archive
