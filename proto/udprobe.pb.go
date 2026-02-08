@@ -24,7 +24,7 @@ const (
 type Probe struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Signature     []byte                 `protobuf:"bytes,1,opt,name=signature,proto3" json:"signature,omitempty"`
-	Tos           []byte                 `protobuf:"bytes,2,opt,name=tos,proto3" json:"tos,omitempty"`
+	Tos           uint32                 `protobuf:"varint,2,opt,name=tos,proto3" json:"tos,omitempty"`
 	Sent          uint64                 `protobuf:"varint,3,opt,name=sent,proto3" json:"sent,omitempty"`
 	Rcvd          uint64                 `protobuf:"varint,4,opt,name=rcvd,proto3" json:"rcvd,omitempty"`
 	Rtt           uint64                 `protobuf:"varint,5,opt,name=rtt,proto3" json:"rtt,omitempty"`
@@ -71,11 +71,11 @@ func (x *Probe) GetSignature() []byte {
 	return nil
 }
 
-func (x *Probe) GetTos() []byte {
+func (x *Probe) GetTos() uint32 {
 	if x != nil {
 		return x.Tos
 	}
-	return nil
+	return 0
 }
 
 func (x *Probe) GetSent() uint64 {
@@ -120,7 +120,7 @@ const file_proto_udprobe_proto_rawDesc = "" +
 	"\x13proto/udprobe.proto\x12\x05proto\"\x9f\x01\n" +
 	"\x05Probe\x12\x1c\n" +
 	"\tsignature\x18\x01 \x01(\fR\tsignature\x12\x10\n" +
-	"\x03tos\x18\x02 \x01(\fR\x03tos\x12\x12\n" +
+	"\x03tos\x18\x02 \x01(\rR\x03tos\x12\x12\n" +
 	"\x04sent\x18\x03 \x01(\x04R\x04sent\x12\x12\n" +
 	"\x04rcvd\x18\x04 \x01(\x04R\x04rcvd\x12\x10\n" +
 	"\x03rtt\x18\x05 \x01(\x04R\x03rtt\x12\x12\n" +

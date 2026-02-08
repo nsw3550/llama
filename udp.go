@@ -1,23 +1,10 @@
 package udprobe
 
 import (
-	"bytes"
-	"encoding/binary"
-	"errors"
-
 	"net"
 
 	"golang.org/x/sys/unix" // The successor to syscall
 )
-
-type UdpData struct {
-	Signature [10]byte
-	Tos       byte
-	Sent      uint64
-	Rcvd      uint64
-	RTT       uint64
-	Lost      uint8 // binary.Read doesn't handle bool correctly
-}
 
 // LocalUDPAddr returns the UDPAddr and net for the provided UDPConn.
 //
@@ -33,9 +20,6 @@ func LocalUDPAddr(conn *net.UDPConn) (*net.UDPAddr, string, error) {
 }
 
 // SetTos will set the IP_TOS value for the unix socket for the provided conn.
-//
-// TODO(nwinemiller): May want to have these return the err, or actually handle.
-// Could dedup there a bit. Maybe.
 func SetTos(conn *net.UDPConn, tos byte) {
 	file, err := conn.File()
 	defer FileCloseHandler(file)
@@ -69,34 +53,4 @@ func EnableTimestamps(conn *net.UDPConn) {
 	err = unix.SetsockoptInt(int(file.Fd()), unix.SOL_SOCKET,
 		unix.SO_TIMESTAMPNS, 1)
 	HandleError(err)
-}
-
-// TODO(nwinemiller): These should be functions attached to `UdpData`
-// PackUdpData takes a UdpData instances and converts it to a byte array.
-func PackUdpData(data *UdpData) ([]byte, error) {
-	byteBuffer := bytes.Buffer{}
-	err := binary.Write(&byteBuffer, binary.LittleEndian, data)
-	HandleError(err)
-	packedData := byteBuffer.Bytes()
-	return packedData, nil
-}
-
-// UnpackUdpData takes data and unpacks it into a UdpData struct, returning an
-// error if the data was not compatible.
-func UnpackUdpData(data []byte) (*UdpData, error) {
-	/*
-	   TODO(nwinemiller): Using protocol buffers would make this easier and more
-	   language agnostic in the future.
-	*/
-	// Cast it into the data struct
-	unpackedData := UdpData{}
-	// Need LittleEndian because network
-	err := binary.Read(bytes.NewBuffer(data), binary.LittleEndian,
-		&unpackedData)
-	// If the data isn't properly formatted, skip it, return an error
-	if err != nil {
-		errMsg := errors.New("invalid data received")
-		return &unpackedData, errMsg
-	}
-	return &unpackedData, nil
 }

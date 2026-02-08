@@ -18,11 +18,11 @@ import (
 type Port struct {
 	tosend      chan *net.UDPAddr // A channel for receiving targets
 	conn        *net.UDPConn      // The socket on which to send/receive
-	cache       *ttlcache.Cache[string, *Probe]
-	stop        chan bool     // A signal to stop processing
-	cbc         chan *Probe   // Callback channel for sending expired Probes
-	readTimeout time.Duration // How long to wait for reads
-	basePD      *PathDist     // A partially filled PathDist based on conn
+	cache       *ttlcache.Cache[string, *InFlightProbe]
+	stop        chan bool           // A signal to stop processing
+	cbc         chan *InFlightProbe // Callback channel for sending expired Probes
+	readTimeout time.Duration       // How long to wait for reads
+	basePD      *PathDist           // A partially filled PathDist based on conn
 }
 
 // srcPD creates a PathDist based on the known socket details for the port.
@@ -91,7 +91,7 @@ func (p *Port) send() {
 			// NOTE: The more time spent before sending, the more stale
 			//       this will get. Not critical, but a consideration.
 			now := NowUint64()
-			probe := Probe{
+			probe := InFlightProbe{
 				Pd:    pd,
 				CSent: now,
 				Tos:   tos,
@@ -104,7 +104,7 @@ func (p *Port) send() {
 			var padding [1000]byte
 			data := &pb.Probe{
 				Signature: signature[:],
-				Tos:       []byte{tos},
+				Tos:       uint32(tos),
 				Sent:      now,
 				// TODO(nwinemiller): This should be customizable, and relative to
 				//			   to the rest of the probe. This should really
@@ -141,7 +141,7 @@ func (p *Port) recv() {
 			LogInfo("Stopping Port.recv for: " + p.conn.LocalAddr().String())
 			// Don't process expirations anymore
 			// This prevents outstanding probes from reporting as loss
-			p.cache.OnEviction(func(ctx context.Context, reason ttlcache.EvictionReason, item *ttlcache.Item[string, *Probe]) {})
+			p.cache.OnEviction(func(ctx context.Context, reason ttlcache.EvictionReason, item *ttlcache.Item[string, *InFlightProbe]) {})
 			return // Stop receiving
 		default:
 			// This is a specific point in time, so it needs to be refreshed
@@ -192,10 +192,10 @@ func (p *Port) recv() {
 			}
 			// TODO(nwinemiller): Make wish to make a `ProbeCache` that does this
 			//             automatically under the hood.
-			probe, err := IfaceToProbe(item.Value())
-			HandleMinorErrorMsg(err, "failed to convert interface to Probe")
-			// TODO(nwinemiller): Update this to be more clean when moving to protobuf
+			probe, err := IfaceToInFlightProbe(item.Value())
+			HandleMinorErrorMsg(err, "failed to convert interface to InFlightProbe")
 			probe.CRcvd = NowUint64()
+			probe.ReflectorRcvd = udpData.Rcvd
 			// Error would be if the key didn't exist, meaning it expired
 			// since the Get above. Rare but possible. Acceptable for now.
 			// TODO(nwinemiller): Log/stat on occurrences of this
@@ -210,17 +210,18 @@ func (p *Port) recv() {
 //
 // This basically just exists to the do the type conversion and pass to the
 // channel.
-func (p *Port) done(ctx context.Context, reason ttlcache.EvictionReason, item *ttlcache.Item[string, *Probe]) {
+func (p *Port) done(ctx context.Context, reason ttlcache.EvictionReason, item *ttlcache.Item[string, *InFlightProbe]) {
 	p.cbc <- item.Value()
 }
 
-// Probe represents a single UDP probe that was sent from, and (hopefully)
+// InFlightProbe represents a single UDP probe that was sent from, and (hopefully)
 // received back, a Port.
-type Probe struct {
-	Pd    *PathDist
-	CSent uint64
-	CRcvd uint64
-	Tos   byte
+type InFlightProbe struct {
+	Pd            *PathDist
+	CSent         uint64
+	CRcvd         uint64
+	ReflectorRcvd uint64
+	Tos           byte
 }
 
 // PathDist -> Path Distinguisher, uniquely IDs the components that determine
@@ -250,12 +251,12 @@ func cleanup(port *Port) {
 // New creates and returns a new Port with associated inputs, outputs,
 // and caching mechanisms.
 func NewPort(conn *net.UDPConn, tosend chan *net.UDPAddr, stop chan bool,
-	cbc chan *Probe, cTimeout time.Duration, cCleanRate time.Duration,
+	cbc chan *InFlightProbe, cTimeout time.Duration, cCleanRate time.Duration,
 	readTimeout time.Duration,
 ) *Port {
 	// Create the cache
-	cache := ttlcache.New[string, *Probe](
-		ttlcache.WithTTL[string, *Probe](cTimeout),
+	cache := ttlcache.New[string, *InFlightProbe](
+		ttlcache.WithTTL[string, *InFlightProbe](cTimeout),
 	)
 	// Create the port
 	port := Port{
@@ -273,7 +274,7 @@ func NewPort(conn *net.UDPConn, tosend chan *net.UDPAddr, stop chan bool,
 
 // NewDefault creates a new Port using default settings.
 func NewDefault(tosend chan *net.UDPAddr, stop chan bool,
-	cbc chan *Probe,
+	cbc chan *InFlightProbe,
 ) *Port {
 	// Create a default UDPConn
 	udpAddr, err := net.ResolveUDPAddr("udp", DefaultAddrStr)
@@ -297,13 +298,13 @@ func NewDefault(tosend chan *net.UDPAddr, stop chan bool,
 	return port
 }
 
-// IfaceToProbe attempts to convert an anonymous object to a Probe, and returns
+// IfaceToInFlightProbe attempts to convert an anonymous object to a InFlightProbe, and returns
 // and error if the operation failed.
-func IfaceToProbe(iface interface{}) (*Probe, error) {
-	probe, ok := iface.(*Probe)
+func IfaceToInFlightProbe(iface interface{}) (*InFlightProbe, error) {
+	probe, ok := iface.(*InFlightProbe)
 	if ok {
 		return probe, nil
 	} else {
-		return probe, errors.New("object provided is not a Probe")
+		return probe, errors.New("object provided is not a InFlightProbe")
 	}
 }

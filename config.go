@@ -84,11 +84,6 @@ type TestsConfig []TestConfig
 
 // TargetConfig describes a single target for testing, including tags that
 // are applied to the resulting summaries.
-//
-// TODO(nwinemiller): Restructure this to be more Dropbox specific, and reduce the
-//
-//	data being included in this config. Most of this can come from a base,
-//	and then be populated by MDB queries.
 type TargetConfig struct {
 	IP   string `yaml:"ip"`
 	Port int64  `yaml:"port"`

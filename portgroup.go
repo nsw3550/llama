@@ -10,7 +10,7 @@ import (
 type PortGroup struct {
 	ports  map[*Port](chan *net.UDPAddr)
 	stop   chan bool
-	cbc    chan *Probe
+	cbc    chan *InFlightProbe
 	tosend chan *net.UDPAddr
 }
 
@@ -139,7 +139,7 @@ func (pg *PortGroup) Stop() {
 // cbc is used as a callback for completed or timedout probes from all ports.
 // tosend is used to receive UDPAddr targets for sending to probes, and is
 // muxed across all Ports in the PortGroup.
-func NewPortGroup(stop chan bool, cbc chan *Probe,
+func NewPortGroup(stop chan bool, cbc chan *InFlightProbe,
 	tosend chan *net.UDPAddr) *PortGroup {
 	pg := PortGroup{
 		ports:  make(map[*Port](chan *net.UDPAddr)),

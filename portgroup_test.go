@@ -6,7 +6,7 @@ import (
 )
 
 var stopChan = make(chan bool)
-var cbChan = make(chan *Probe)
+var cbChan = make(chan *InFlightProbe)
 var sendChan = make(chan *net.UDPAddr)
 
 func TestNewPortGroup(t *testing.T) {
