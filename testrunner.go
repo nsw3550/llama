@@ -154,7 +154,7 @@ func (tr *TestRunner) AddNewPort(portStr string, tos byte,
 // `cbc` is a channel for accepting completed Probes.
 // `rl` is a rate limiter which is used to throttle the number of cycles that
 // may be completed per second.
-func NewTestRunner(cbc chan *Probe, rl *rate.Limiter) *TestRunner {
+func NewTestRunner(cbc chan *InFlightProbe, rl *rate.Limiter) *TestRunner {
 	// TODO(nwinemiller): What about providing this on creation? Perhaps an option at
 	//      some point, but just use Set for now.
 	//targets := make([]*net.UDPAddr)

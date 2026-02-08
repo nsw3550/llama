@@ -7,14 +7,14 @@ import (
 
 func TestResultHandlerRun(t *testing.T) {
 	// Create the TestHandler
-	in := make(chan *Probe)
+	in := make(chan *InFlightProbe)
 	out := make(chan *Result)
 	rh := NewResultHandler(in, out)
 	// Start it
 	rh.Run()
 	// Create a probe
 	// Use zero values here, but test more intensely further down
-	probe := &Probe{}
+	probe := &InFlightProbe{}
 	// Provide the probe to the input
 	select {
 	case in <- probe:
@@ -30,7 +30,7 @@ func TestResultHandlerRun(t *testing.T) {
 }
 
 func TestResultHandlerStop(t *testing.T) {
-	in := make(chan *Probe)
+	in := make(chan *InFlightProbe)
 	out := make(chan *Result)
 	rh := NewResultHandler(in, out)
 	// Make sure it's not already closed
@@ -49,7 +49,7 @@ func TestResultHandlerStop(t *testing.T) {
 }
 
 func TestNewResultHandler(t *testing.T) {
-	in := make(chan *Probe)
+	in := make(chan *InFlightProbe)
 	out := make(chan *Result)
 	rh := NewResultHandler(in, out)
 	if rh.in != in {
@@ -62,7 +62,7 @@ func TestNewResultHandler(t *testing.T) {
 
 func TestProcess(t *testing.T) {
 	pd := &PathDist{}
-	probe := &Probe{
+	probe := &InFlightProbe{
 		Pd:    pd,
 		CSent: uint64(100000),
 		CRcvd: uint64(200000),
@@ -72,7 +72,7 @@ func TestProcess(t *testing.T) {
 	// below.
 	result := Process(probe)
 	if result.Pd != pd {
-		t.Error("PathDist doesn't match between Probe and Result")
+		t.Error("PathDist doesn't match between InFlightProbe and Result")
 	}
 	// Make sure the RTT is calculated
 	if result.RTT != 100000 {
@@ -89,7 +89,7 @@ func TestProcess(t *testing.T) {
 }
 
 func TestRTT(t *testing.T) {
-	probe := &Probe{
+	probe := &InFlightProbe{
 		CSent: uint64(100000),
 		CRcvd: uint64(200000),
 	}
@@ -104,7 +104,7 @@ func TestRTT(t *testing.T) {
 			", expected 100000")
 	}
 	// Handle a lost probe and verify zero RTT and mark as loss
-	probe = &Probe{
+	probe = &InFlightProbe{
 		CSent: uint64(100000),
 	}
 	result = &Result{} // Reset the Result
@@ -118,7 +118,7 @@ func TestRTT(t *testing.T) {
 		t.Error("Lost probe with non-zero RTT or not marked as lost")
 	}
 	// Handle a probe that has mixed up sent/recv times
-	probe = &Probe{
+	probe = &InFlightProbe{
 		CSent: uint64(200000),
 		CRcvd: uint64(100000),
 	}

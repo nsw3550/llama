@@ -1,33 +1,45 @@
 package udprobe
 
 import (
+	"bytes"
 	"net"
 	"testing"
+
+	pb "github.com/nsw3550/udprobe/proto"
+	"google.golang.org/protobuf/proto"
 )
 
-func TestUnpackUdpData(t *testing.T) {
+func TestProbeProtobuf(t *testing.T) {
 	// Test with good data first
-	// "abcdefghij"
-	signature := [10]byte{97, 98, 99, 100, 101, 102, 103, 104, 105, 106}
-	data := UdpData{
+	signature := []byte("abcdefghij")
+	data := &pb.Probe{
 		Signature: signature,
+		Tos:       46,
+		Sent:      123456789,
 	}
-	bytes, err := PackUdpData(&data)
-	HandleMinorError(err)
-	unpacked, err := UnpackUdpData(bytes)
+	marshaled, err := proto.Marshal(data)
 	if err != nil {
-		t.Error("Was unable to unpack data successfully")
+		t.Fatal("Failed to marshal probe data:", err)
 	}
+
+	unmarshaled := &pb.Probe{}
+	err = proto.Unmarshal(marshaled, unmarshaled)
+	if err != nil {
+		t.Fatal("Failed to unmarshal probe data:", err)
+	}
+
 	// Compare the actual structs
-	if *unpacked != data {
-		t.Error("Data unpacked, but lost in translation")
+	if !bytes.Equal(unmarshaled.Signature, data.Signature) ||
+		unmarshaled.Tos != data.Tos ||
+		unmarshaled.Sent != data.Sent {
+		t.Error("Data unmarshaled, but lost in translation")
 	}
 
 	// Now verify that bad data doesn't work
 	badData := []byte{1, 2, 3, 4, 5}
-	_, err = UnpackUdpData(badData)
+	err = proto.Unmarshal(badData, &pb.Probe{})
 	if err == nil {
-		t.Error("No error returned for bad data")
+		t.Error("No error returned for bad data (though unmarshal might succeed with empty/corrupt proto)")
 	}
 }
 

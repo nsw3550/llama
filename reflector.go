@@ -48,8 +48,15 @@ func Reflect(conn *net.UDPConn, rl *rate.Limiter) {
 			continue
 		}
 
+		// Update the received time before reflecting
+		pbProbe.Rcvd = NowUint64()
+		// Re-marshal to include the new timestamp
+		// NOTE: This adds some overhead, but is more accurate for one-way delay.
+		data, err = proto.Marshal(pbProbe)
+		HandleMinorErrorMsg(err, "failed to marshal reflected probe")
+
 		// Send the data back to sender
-		Send(data, pbProbe.Tos[0], conn, addr)
+		Send(data, byte(pbProbe.Tos), conn, addr)
 		reflectorPacketsReflected.Inc()
 	}
 }

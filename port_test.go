@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-var exampleProbe = Probe{
+var exampleProbe = InFlightProbe{
 	Pd:    &PathDist{},
 	CSent: uint64(1234123412),
 	CRcvd: uint64(1234567890),
@@ -16,7 +16,7 @@ var exampleProbe = Probe{
 var exampleUDPAddr, _ = net.ResolveUDPAddr("udp", "127.0.0.1:0")
 var exampleUDPAddrChan = make(chan *net.UDPAddr)
 var exampleBoolChan = make(chan bool)
-var exampleProbeChan = make(chan *Probe)
+var exampleProbeChan = make(chan *InFlightProbe)
 
 /*
    Port tests
@@ -76,7 +76,7 @@ func TestNewDefault(t *testing.T) {
 func TestSendValidation(t *testing.T) {
 	tosend := make(chan *net.UDPAddr)
 	stop := make(chan bool)
-	cbc := make(chan *Probe)
+	cbc := make(chan *InFlightProbe)
 
 	// Create a default UDPConn
 	udpAddr, _ := net.ResolveUDPAddr("udp", "127.0.0.1:0")
@@ -119,18 +119,18 @@ func TestSendValidation(t *testing.T) {
 	}
 }
 
-func TestIfaceToProbe(t *testing.T) {
+func TestIfaceToInFlightProbe(t *testing.T) {
 	// Convert the example
-	converted, err := IfaceToProbe(&exampleProbe)
+	converted, err := IfaceToInFlightProbe(&exampleProbe)
 	if err != nil {
-		t.Error("Encountered an error when converting to probe")
+		t.Error("Encountered an error when converting to InFlightProbe")
 	}
 	// Make sure it matches the original
 	if &exampleProbe != converted {
-		t.Error("Converted to probe, but doesn't match original")
+		t.Error("Converted to InFlightProbe, but doesn't match original")
 	}
 	// Make sure passing in something else fails
-	_, err = IfaceToProbe("I am not a probe")
+	_, err = IfaceToInFlightProbe("I am not a InFlightProbe")
 	if err == nil {
 		t.Error("Expected an error current conversion, but didn't get one")
 	}

@@ -6,7 +6,7 @@ option go_package = "github.com/nsw3550/udprobe/proto";
 
 message Probe {
   bytes signature = 1;
-  bytes tos = 2;
+  uint32 tos = 2;
   uint64 sent = 3;
   uint64 rcvd = 4;
   uint64 rtt = 5;

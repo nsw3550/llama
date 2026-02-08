@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-var exampleCallbackChan = make(chan *Probe)
+var exampleCallbackChan = make(chan *InFlightProbe)
 
 func TestTestRunnerRun(t *testing.T) {
 	// TODO(nwinemiller): A more intensive test of this requires more mocking.

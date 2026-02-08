@@ -35,7 +35,7 @@ type Collector struct {
 	// TODO(nwinemiller): Keeping cbc around here feels dirty and unneeded, as it's
 	//      only temporarily needed during setup. But it does the trick for
 	//      now. Perhaps find a cleaner way in the future.
-	cbc chan *Probe
+	cbc chan *InFlightProbe
 	s   *Summarizer
 	rh  []*ResultHandler
 }
@@ -161,7 +161,7 @@ func (c *Collector) SetupTestRunners() {
 	LogInfo("Setting up test runners")
 	// Don't recreate the channel on reload, only create once
 	if c.cbc == nil {
-		c.cbc = make(chan *Probe, DEFAULT_CHANNEL_SIZE)
+		c.cbc = make(chan *InFlightProbe, DEFAULT_CHANNEL_SIZE)
 	}
 	// If there are already test runners, they should be removed
 	if len(c.runners) > 0 {

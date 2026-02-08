@@ -14,8 +14,8 @@ type Result struct {
 
 // ResultHandler is a post-processor for Probes and converts them to Results.
 type ResultHandler struct {
-	in   chan *Probe  // Probes come in
-	out  chan *Result // Results come out
+	in   chan *InFlightProbe // Probes come in
+	out  chan *Result        // Results come out
 	stop chan bool
 }
 
@@ -52,7 +52,7 @@ func (rh *ResultHandler) Stop() {
 
 // New creates a new ResultHandler that utilizes the provided in and out
 // channels.
-func NewResultHandler(in chan *Probe, out chan *Result) *ResultHandler {
+func NewResultHandler(in chan *InFlightProbe, out chan *Result) *ResultHandler {
 	stop := make(chan bool)
 	rh := ResultHandler{in: in, out: out, stop: stop}
 	return &rh
@@ -60,7 +60,7 @@ func NewResultHandler(in chan *Probe, out chan *Result) *ResultHandler {
 
 // Process takes in a probe, performs calculations on it, and returns a
 // Result.
-func Process(probe *Probe) *Result {
+func Process(probe *InFlightProbe) *Result {
 	result := &Result{
 		Pd:   probe.Pd,
 		Done: probe.CRcvd,
@@ -72,7 +72,7 @@ func Process(probe *Probe) *Result {
 }
 
 // RTT calculates the round trip time for a probe and updates the Result.
-func RTT(probe *Probe, result *Result) error {
+func RTT(probe *InFlightProbe, result *Result) error {
 	if probe.CRcvd == 0 {
 		// Probe timed out and was never received
 		// Leave RTT as the zero value (0)
